@@ -1,49 +1,10 @@
 # TeamFlow Notification Service
 
-Микросервис уведомлений для проекта **TeamFlow**.
+**TeamFlow Notification Service** — отдельный микросервис для обработки уведомлений в системе TeamFlow.
 
-Сервис получает события о регистрации пользователей через **Apache Kafka** и обрабатывает их для отправки уведомлений.
+Сервис получает события от основного приложения через **Apache Kafka** и обрабатывает их независимо от основной бизнес-логики.
 
-## Архитектура
-
-```text
-                    ┌─────────────────────┐
-                    │      TeamFlow       │
-                    │                     │
-                    │  User registration  │
-                    └──────────┬──────────┘
-                               │
-                               │ UserRegisteredEvent
-                               ▼
-                    ┌─────────────────────┐
-                    │       Kafka         │
-                    │                     │
-                    │   topic:            │
-                    │   user-events       │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-              ┌──────────────────────────────┐
-              │ TeamFlow Notification Service│
-              │                              │
-              │      UserEventConsumer       │
-              │              │               │
-              │              ▼               │
-              │      NotificationService     │
-              └──────────────────────────────┘
-```
-
-## Основные возможности
-
-* получение событий из Kafka;
-* обработка события регистрации пользователя;
-* десериализация JSON-событий в `UserRegisteredEvent`;
-* передача события в сервис уведомлений;
-* подготовленная архитектура для дальнейшего подключения реального канала уведомлений.
-
-На текущем этапе отправка уведомления реализована через вывод информации в консоль.
-
-## Технологии
+## Стек
 
 * **Java 17**
 * **Spring Boot 4.1.1**
@@ -53,55 +14,64 @@
 * **Gradle**
 * **JUnit**
 
-## Структура проекта
+## Основные возможности
 
-```text
-src/
-├── main/
-│   ├── java/
-│   │   └── org/example/teamflownotificationservice/
-│   │       ├── event/
-│   │       │   └── UserRegisteredEvent.java
-│   │       ├── kafka/
-│   │       │   └── UserEventConsumer.java
-│   │       ├── service/
-│   │       │   └── NotificationService.java
-│   │       └── TeamFlowNotificationServiceApplication.java
-│   │
-│   └── resources/
-│       └── application.properties
-│
-└── test/
-    └── java/
-        └── org/example/teamflownotificationservice/
-            └── DemoApplicationTests.java
+* получение событий из Kafka;
+* обработка события регистрации пользователя `UserRegisteredEvent`;
+* JSON-десериализация сообщений;
+* асинхронное взаимодействие с основным приложением;
+* отдельная обработка логики уведомлений;
+* независимый запуск и масштабирование микросервиса.
+
+На текущем этапе отправка уведомления реализована через вывод информации в консоль. Архитектура позволяет в дальнейшем подключить реальные каналы уведомлений, например email или push.
+
+## Архитектура
+
+```text id="8q1f7z"
+                    ┌─────────────────────┐
+                    │      TeamFlow       │
+                    │                     │
+                    │ User registration   │
+                    └──────────┬──────────┘
+                               │
+                               │ UserRegisteredEvent
+                               ▼
+                    ┌─────────────────────┐
+                    │      Apache Kafka   │
+                    │                     │
+                    │   user-events       │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+              ┌──────────────────────────────┐
+              │ TeamFlow Notification Service│
+              │                              │
+              │     UserEventConsumer        │
+              │              │               │
+              │              ▼               │
+              │     NotificationService      │
+              └──────────────────────────────┘
 ```
 
 ## Kafka
 
-Сервис подключается к Kafka по адресу:
+Микросервис использует Kafka topic:
 
-```text
-localhost:9092
-```
-
-Используемый топик:
-
-```text
+```text id="z1w3u5"
 user-events
 ```
 
 Consumer Group:
 
-```text
+```text id="f7t8pa"
 notification-service-v2
 ```
 
-### Обрабатываемое событие
+После регистрации пользователя TeamFlow публикует `UserRegisteredEvent`, который микросервис получает и передаёт в `NotificationService`.
 
-Сервис получает событие регистрации пользователя:
+Пример события:
 
-```json
+```json id="4h8x3q"
 {
   "userId": 1,
   "username": "test1",
@@ -109,158 +79,49 @@ notification-service-v2
 }
 ```
 
-Событие преобразуется в объект:
+## Структура
 
-```java
-UserRegisteredEvent
-```
-
-После получения события `UserEventConsumer` передаёт его в:
-
-```java
-NotificationService
+```text id="4w1q3e"
+src/main/java/org/example/teamflownotificationservice/
+├── event/
+│   └── UserRegisteredEvent.java
+├── kafka/
+│   └── UserEventConsumer.java
+├── service/
+│   └── NotificationService.java
+└── TeamFlowNotificationServiceApplication.java
 ```
 
 ## Запуск
 
-### Требования
-
-Перед запуском необходимо установить:
-
-* Java 17;
-* Apache Kafka;
-* Gradle Wrapper используется непосредственно из проекта.
-
-### 1. Запустить Kafka
-
-Kafka должна быть доступна по адресу:
-
-```text
-localhost:9092
-```
-
-### 2. Запустить TeamFlow
-
-Основное приложение TeamFlow должно отправлять события в Kafka topic:
-
-```text
-user-events
-```
-
-### 3. Запустить Notification Service
-
-В IntelliJ IDEA запустить:
-
-```text
-TeamFlowNotificationServiceApplication
-```
-
-Или через Gradle:
-
-```bash
-./gradlew bootRun
-```
-
-В Windows:
-
-```bash
-gradlew.bat bootRun
-```
-
 Микросервис запускается на порту:
 
-```text
+```text id="x2h7qk"
 8081
 ```
 
-## Проверка работы
+Запуск через Gradle:
 
-После регистрации пользователя в TeamFlow событие отправляется в Kafka.
-
-Notification Service получает его и обрабатывает через `NotificationService`.
-
-В консоли появляется сообщение:
-
-```text
-Sending notification to: user1@example.com for user: test1
+```bash id="r9c4ve"
+./gradlew bootRun
 ```
 
-Таким образом, цепочка обработки выглядит следующим образом:
+Для работы Kafka используется:
 
-```text
-Регистрация пользователя
-        ↓
-TeamFlow
-        ↓
-Kafka: user-events
-        ↓
-UserEventConsumer
-        ↓
-NotificationService
-        ↓
-Notification
+```text id="m5n2kd"
+localhost:9092
 ```
 
-## Конфигурация
+Тесты:
 
-Основные настройки находятся в:
-
-```text
-src/main/resources/application.properties
-```
-
-Текущая конфигурация использует:
-
-```properties
-server.port=8081
-spring.kafka.bootstrap-servers=localhost:9092
-spring.kafka.consumer.group-id=notification-service-v2
-```
-
-Для JSON-десериализации используется:
-
-```properties
-spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer
-```
-
-Доверенным пакетом для события является:
-
-```text
-org.example.teamflownotificationservice.event
-```
-
-## Тестирование
-
-Для запуска тестов:
-
-```bash
+```bash id="v8x3pa"
 ./gradlew test
-```
-
-В Windows:
-
-```bash
-gradlew.bat test
-```
-
-Для полной сборки проекта:
-
-```bash
-./gradlew clean build
-```
-
-В Windows:
-
-```bash
-gradlew.bat clean build
 ```
 
 ## Связь с TeamFlow
 
-`TeamFlowNotificationService` является отдельным микросервисом проекта **TeamFlow**.
+`TeamFlow Notification Service` является отдельным сервисом системы **TeamFlow**.
 
-Основное приложение отвечает за бизнес-логику и регистрацию пользователей, а Notification Service вынесен в отдельный сервис.
+Основное приложение отвечает за бизнес-логику, а обработка уведомлений вынесена в отдельный микросервис. Взаимодействие между сервисами происходит асинхронно через Apache Kafka.
 
-Взаимодействие между сервисами осуществляется асинхронно через Apache Kafka.
-
-Это позволяет отделить обработку уведомлений от основного приложения и независимо развивать сервис уведомлений.
+Такой подход позволяет независимо развивать и масштабировать функциональность уведомлений.
